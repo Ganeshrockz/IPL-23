@@ -1,0 +1,610 @@
+import React, { Component } from 'react';
+
+import CanvasJSReact from '../assets/canvasjs.react';
+
+import * as playerPoints from "../assets/playerPoints.json";
+import * as teams from "../assets/AuctionTeams.json";
+import * as timelinePoints from "../assets/teamPoints.json";
+import 'bootstrap/dist/css/bootstrap.min.css';
+import 'bootstrap/dist/js/bootstrap.min';
+import Row from 'react-bootstrap/Row';
+import Col from 'react-bootstrap/Col';
+import Navbar from 'react-bootstrap/Navbar';
+import Container from 'react-bootstrap/Container';
+
+import {
+  Route,
+  NavLink,
+  BrowserRouter
+} from "react-router-dom";
+
+import ReactTable from 'react-table-6'
+import 'react-table-6/react-table.css'
+
+var CanvasJSChart = CanvasJSReact.CanvasJSChart;
+
+class Fantasy extends Component {
+	teamIdMap = {
+		1: "CSK",
+		3: "DC",
+		4: "KXIP",
+		5: "KKR",
+		6: "MI",
+		8: "RR",
+		9: "RCB",
+		62: "SRH"	
+	}
+	playerIdToPointsMap = {};
+	playerIdToRunsMap = {};
+	playerIdToWicketsMap = {};
+	playerIdToFoursMap = {};
+	playerIdToSixesMap = {};
+	playerIdToCatchesMap = {};
+	playerIdToNameMap = {};
+
+	playerTableColumns = [	  
+		{
+			Header: "PlayerName",
+			accessor: "name"
+		},
+		{
+			Header: "Matches",
+			accessor: "matches"
+		},
+		{
+			Header: "Points",
+			accessor: 'points',
+			defaultSortDesc: true
+		}
+  	];
+
+	constructor(props) {
+		super(props);
+		this.state = {
+			hideTeamsPointsTable: false,
+			selectedTeamName: "",
+			hidePlayerPointsTable: false,
+			selectedPlayerId: 0
+		};
+	}
+
+	  
+	_getTeamPoints(players, teams) {
+		this.playerIdToPointsMap = {};
+		
+		players.forEach((player) => {
+			let points = player["totalPoints"];
+			if (player["scores"] && player["scores"].length > 0) {
+				player["scores"].forEach((score) => {
+					if (score["isMOTM"]) {
+						points += 25;
+					}
+				});
+			}
+			this.playerIdToPointsMap[player["id"]] = points;
+		});
+
+		let data = []
+
+		teams.forEach((team) => {
+			let points = 0;
+			let playerIds = team["players"];
+
+			playerIds.forEach((id) => {
+				if(this.playerIdToPointsMap[id] !== undefined)
+				{
+					points = points + this.playerIdToPointsMap[id];
+				}
+			});
+			
+			data.push({
+				"name": team["name"],
+				"points": points
+			});
+		});
+
+		return data;
+	}
+
+	_getPlayersTable() {
+		let teamPlayerIds = "";
+
+		teams["teams"].forEach((team) => {
+			if (this.state.selectedTeamName === team["name"]) {
+				teamPlayerIds = team["players"];
+			}
+		});
+
+		let teamPlayerData = [];
+
+		playerPoints["Players"].forEach((player) => {
+			if (teamPlayerIds.includes(player["id"])) {
+				let motmPoints = 0;
+				if (player["scores"] && player["scores"].length > 0) {
+					player["scores"].forEach((score) => {
+						if (score["isMOTM"]) {
+							motmPoints += 25;
+						}
+					});
+				}
+				teamPlayerData.push({
+					"id": player["id"],
+					"name": player["name"],
+					"matches": player["scores"].length,
+					"points": player["totalPoints"] + motmPoints
+				});
+			}
+		});
+
+		return (
+			<>
+				<center>
+					<div style={{
+							"margin-top": "5%",
+							"font-weight": "bold",
+							"font-size": "30px"
+						}}>
+						{this.state.selectedTeamName}
+					</div>
+				</center>
+				<ReactTable
+					style={{
+						"margin-top": "20px",
+					}}
+					sorted={[
+						{
+							id: "points",
+							desc: true
+						}
+					]}
+					columns={this.playerTableColumns}
+					minRows={15}
+					data={teamPlayerData} 
+					getTrProps={(state, rowInfo, column, instance) => {
+						console.log(rowInfo)
+						return {
+							onClick: (e, handleOriginal) => {
+								this.setState({
+									hidePlayerPointsTable: true,
+									selectedPlayerId: rowInfo["original"]["id"]
+								})
+							},
+							style: {
+								cursor: "pointer"
+							}
+						}
+					}} />
+				<center>
+					<button onClick={() => {
+						this.setState({
+							hideTeamsPointsTable: false,
+							selectedTeamName: ""
+						});
+						
+					}}
+					style={{
+						"margin-top": "10px",
+					}}>
+						Back
+					</button>
+				</center>
+			</>
+		);
+	}
+
+	_populatePlayerWiseStats() {
+		let playerList = playerPoints["Players"];
+		this.playerIdToRunsMap = {};
+		this.playerIdToWicketsMap = {};
+		this.playerIdToSixesMap = {};
+		this.playerIdToFoursMap = {};
+		this.playerIdToCatchesMap = {};
+		this.playerIdToNameMap = {};
+
+		playerList.forEach((player) => {
+			let runs = 0;
+			let wickets = 0;
+			let fours = 0;
+			let sixes = 0;
+			let catches = 0;
+
+			this.playerIdToNameMap[player["id"]] = player["name"];
+			player.scores.forEach((score) => {
+				if (score["battingPerformance"] !== undefined && score["battingPerformance"]["runs"] !== undefined) {
+					runs = runs + score["battingPerformance"]["runs"];
+					fours = fours + score["battingPerformance"]["fours"];
+					sixes = sixes + score["battingPerformance"]["sixes"];
+				}
+
+				if (score["bowlingPerformance"] !== undefined && score["bowlingPerformance"]["wickets"] !== undefined) {
+					wickets = wickets + score["bowlingPerformance"]["wickets"];
+				}
+
+				if (score["fieldingPerformance"] !== undefined && score["fieldingPerformance"]["catches"] !== undefined) {
+					catches = catches + score["fieldingPerformance"]["catches"];
+				}
+			});
+			this.playerIdToRunsMap[player["id"]] = runs;
+			this.playerIdToWicketsMap[player["id"]] = wickets;
+			this.playerIdToFoursMap[player["id"]] = fours;
+			this.playerIdToSixesMap[player["id"]] = sixes;
+			this.playerIdToCatchesMap[player["id"]] = catches;
+		});
+	}
+
+	_getToolTipContent(label, playerIdToCountMap) {
+		let teamList = teams["teams"];
+		let toolTip = "";
+
+		teamList.forEach((team) => {
+			if (team["name"] === label) {
+				team["players"].forEach((player) => {
+					if (playerIdToCountMap[player] !== undefined) {
+						toolTip = toolTip + this.playerIdToNameMap[player] + " : " + playerIdToCountMap[player] + "<br>";
+					}
+				});
+			}
+		});
+
+		return toolTip;
+	}
+
+	_getTimelineGraphOptions() {
+		let teams = timelinePoints["teams"];
+		let dataArray = [];
+		let dataPoints = [];
+		teams.forEach((team) => {
+			let dataPointsArray = [];
+			let label= 1;
+			team["points"].forEach((point) => {
+				dataPointsArray.push({
+					label: label.toString(),
+					y: point
+				});
+				label += 1;
+			});
+			let dataValue = {
+				type: "spline",
+				name: team["name"],
+				showInLegend: true,
+				dataPoints: dataPointsArray
+			};
+
+			dataArray.push(dataValue);
+		});
+		const options = {
+			animationEnabled: true,
+			exportEnabled: true,
+			axisY: {
+				title: "Points"
+			},
+			legend: {
+				cursor: "pointer"
+			},
+			data: dataArray
+		}
+
+		return options;
+	}
+
+	_getGraphOptions(playerIdToCountMap) {
+		let teamList = teams["teams"];
+		let chartPoints = [];
+
+		teamList.forEach((team) => {
+			let count = 0;
+			team.players.forEach((player) => {
+				if (playerIdToCountMap[player] !== undefined) {
+					count = count + playerIdToCountMap[player];
+				}
+			});
+
+			chartPoints.push({
+				"y": count,
+				"label": team.name
+			});
+		});
+
+		const options = {
+			animationEnabled: true,
+			theme: "light2",
+			axisX: {
+				title: "Teams",
+				reversed: true,
+			},
+			toolTip: {
+				content: this._getToolTipContent("a", playerIdToCountMap)
+			},
+			axisY: {
+				title: "Values"
+			},
+			data: [{
+				type: "bar",
+				dataPoints: chartPoints
+			}]
+		}
+		
+		return options;
+	}
+
+	_getGraphView(text, graphOptions) {
+		return (
+			<>
+				<center>
+					<div style={{
+						"margin-top": "5%",
+						"font-weight": "bold",
+						"font-size": "20px"
+					}}>
+						{text}
+							</div>
+				</center>
+
+				<CanvasJSChart options={graphOptions} />
+			</>
+		);
+	}
+
+	_getTeamsPage(data, columns) {
+		this._populatePlayerWiseStats();
+		let teamWiseTimelineOptions = this._getTimelineGraphOptions();
+		let teamWiseRunsGraphOptions = this._getGraphOptions(this.playerIdToRunsMap);
+		let teamWiseWicketsGraphOptions = this._getGraphOptions(this.playerIdToWicketsMap);
+		let teamWiseFoursGraphOptions = this._getGraphOptions(this.playerIdToFoursMap);
+		let teamWiseSixesGraphOptions = this._getGraphOptions(this.playerIdToSixesMap);
+		let teamWiseCatchesGraphOptions = this._getGraphOptions(this.playerIdToCatchesMap);
+		return (
+			<>
+				<center>
+					<div style={{
+							"margin-top": "5%",
+							"font-weight": "bold",
+							"font-size": "20px"
+						}}>
+						Leaderboard
+					</div>
+				</center>
+				<ReactTable
+					style={
+						{
+							"margin-top": "10px",
+							 "font-weight": "bold"
+						}
+					}
+					sorted={[
+						{
+							id: "points",
+							desc: true
+						}
+					]}
+					data={data}
+					columns={columns}
+					minRows={10}
+					showPagination={false}
+					getTrProps={(state, rowInfo, column, instance) => {
+						return {
+							onClick: (e, handleOriginal) => {
+								console.log(rowInfo)
+								this.setState({
+									hideTeamsPointsTable: true,
+									selectedTeamName: rowInfo["row"]["name"]
+								});
+							},
+							style: {
+								cursor: "pointer"
+							}
+						}
+					}} />
+					{this._getGraphView("Timeline", teamWiseTimelineOptions)}
+					{this._getGraphView("Runs-Scored", teamWiseRunsGraphOptions)}
+					{this._getGraphView("Wickets-Taken", teamWiseWicketsGraphOptions)}
+					{this._getGraphView("Fours-Scored", teamWiseFoursGraphOptions)}
+					{this._getGraphView("Sixes-Scored", teamWiseSixesGraphOptions)}
+					{this._getGraphView("Catches-Taken", teamWiseCatchesGraphOptions)}
+			</>
+		);
+	}
+
+	_getPlayerGraphOption(player) {
+
+		let battingPerfList = [];
+		let bowlingPerfList = [];
+		let fieldingPerfList = [];
+
+		let battingPoints = 0;
+		let bowlingPoints = 0;
+		let fieldingPoints = 0;
+
+		player["scores"].forEach((score) => {
+			battingPerfList.push({
+				"label": this.teamIdMap[score['opponentTeamId']],
+				"y": score["battingPoints"]
+			});
+
+			bowlingPerfList.push({
+				"label": this.teamIdMap[score['opponentTeamId']],
+				"y": score["bowlingPoints"]
+			});
+
+			fieldingPerfList.push({
+				"label": this.teamIdMap[score['opponentTeamId']],
+				"y": score["fieldingPoints"]
+			});
+
+			battingPoints += score["battingPoints"];
+			bowlingPoints += score["bowlingPoints"];
+			fieldingPoints += score["fieldingPoints"];
+		});
+
+		const options = {
+			animationEnabled: true,
+			exportEnabled: false,
+			title: {
+				text: "Matchwise points of " + player["name"],
+				fontFamily: "verdana"
+			},
+			axisY: {
+				title: "Points"
+			},
+			axisX: {
+				title: "Opponent"
+			},
+			toolTip: {
+				shared: true,
+				reversed: true
+			},
+			legend: {
+				verticalAlign: "center",
+				horizontalAlign: "right",
+				reversed: true,
+				cursor: "pointer"
+			},
+			data: [
+			{
+				type: "stackedColumn",
+				name: "Batting",
+				showInLegend: true,
+				dataPoints: battingPerfList
+			},
+			{
+				type: "stackedColumn",
+				name: "Bowling",
+				showInLegend: true,
+				dataPoints: bowlingPerfList
+			},
+			{
+				type: "stackedColumn",
+				name: "Fielding",
+				showInLegend: true,
+				dataPoints: fieldingPerfList
+			}]
+		}
+
+		return [options, battingPoints, bowlingPoints, fieldingPoints];
+	}
+
+	_getPlayerDistributionGraphOption(battingPoints, bowlingPoints, fieldingPoints, player) {
+		const options = {
+			animationEnabled: true,
+			title: {
+				text: "Overall point distribution"
+			},
+			subtitles: [{
+				text: player["name"],
+				verticalAlign: "center",
+				fontSize: 20,
+				dockInsidePlotArea: true
+			}],
+			data: [{
+				type: "doughnut",
+				showInLegend: true,
+				indexLabel: "{name}: {y}",
+				dataPoints: [
+					{ name: "Batting", y: battingPoints },
+					{ name: "Bowling", y: bowlingPoints },
+					{ name: "Fielding", y: fieldingPoints }
+				]
+			}]
+		}
+
+		return options;
+	}
+
+	_getPlayerDetailView() {
+
+		let players = playerPoints["Players"];
+		let currentSelectedPlayer = {};
+		
+		players.forEach((player) => {
+			if (player["id"] === this.state.selectedPlayerId) {
+				currentSelectedPlayer = player;
+				return;
+			}
+		});
+
+		let returnValue = this._getPlayerGraphOption(currentSelectedPlayer);
+
+		let playerGraphOptions = returnValue[0];
+		let distributionGraphOptions = this._getPlayerDistributionGraphOption(returnValue[1], returnValue[2], returnValue[3], currentSelectedPlayer);
+
+		return(
+			<>
+			<div style={{"margin-top" : "10%"}} />
+			
+			<CanvasJSChart 
+				options={playerGraphOptions} />
+
+			
+			<div style={{"margin-top" : "4%"}} />
+			
+			<CanvasJSChart 
+				options={distributionGraphOptions} />
+			
+			<center>
+				<button onClick={() => {
+						this.setState({
+							hidePlayerPointsTable: false,
+							selectedPlayerId: 0
+						});
+						
+					}}
+					style={{
+						"margin-top": "10px",
+					}}>
+						Back
+					</button>
+			</center>
+			</>
+		);
+	}
+
+  	render() { 
+	  let players = playerPoints["Players"];   
+	  let teamList = teams["teams"];
+	  const columns = [	  
+			{
+				Header: "Team",
+				accessor: "name"
+			},
+			{
+				Header: "Points",
+				accessor: 'points',
+				defaultSortDesc: true
+			}
+	  ];
+	  
+	  let data = this._getTeamPoints(players, teamList);
+
+    return (
+		<div>
+			<Navbar bg="dark" variant="dark">
+				<Navbar.Brand href="/">
+					IPL - 2020
+				</Navbar.Brand>
+			  </Navbar>		  
+			  <BrowserRouter>		  
+					<Row>				
+						<Col xl={{ span: 7, offset: 3 }} lg={{ span: 8, offset: 3 }} xs={{ span: 8, offset: 2 }}>
+							<Container>
+								<div className="content">
+									{
+										!this.state.hideTeamsPointsTable && this._getTeamsPage(data, columns)
+									}
+									{
+										this.state.hideTeamsPointsTable && !this.state.hidePlayerPointsTable && this._getPlayersTable()
+									}
+									{
+										this.state.hidePlayerPointsTable && this._getPlayerDetailView()
+									}								
+									
+								</div>
+							</Container>
+						</Col>					
+					</Row>			
+			  </BrowserRouter>	
+			</div>
+    );
+  }
+}
+
+export default Fantasy;
