@@ -161,7 +161,6 @@ class Fantasy extends Component {
 					minRows={15}
 					data={teamPlayerData} 
 					getTrProps={(state, rowInfo, column, instance) => {
-						console.log(rowInfo)
 						return {
 							onClick: (e, handleOriginal) => {
 								this.setState({
@@ -371,12 +370,6 @@ class Fantasy extends Component {
 							 "font-weight": "bold"
 						}
 					}
-					sorted={[
-						{
-							id: "points",
-							desc: true
-						}
-					]}
 					data={data}
 					columns={columns}
 					minRows={10}
@@ -384,7 +377,6 @@ class Fantasy extends Component {
 					getTrProps={(state, rowInfo, column, instance) => {
 						return {
 							onClick: (e, handleOriginal) => {
-								console.log(rowInfo)
 								this.setState({
 									hideTeamsPointsTable: true,
 									selectedTeamName: rowInfo["row"]["name"]
