@@ -199,6 +199,7 @@ class Fantasy extends Component {
 		this.playerIdToSixesMap = {};
 		this.playerIdToFoursMap = {};
 		this.playerIdToCatchesMap = {};
+		this.playerIdToMotmMap = {};
 		this.playerIdToNameMap = {};
 
 		playerList.forEach((player) => {
@@ -207,6 +208,7 @@ class Fantasy extends Component {
 			let fours = 0;
 			let sixes = 0;
 			let catches = 0;
+			let motms = 0;
 
 			this.playerIdToNameMap[player["id"]] = player["name"];
 			player.scores.forEach((score) => {
@@ -223,12 +225,17 @@ class Fantasy extends Component {
 				if (score["fieldingPerformance"] !== undefined && score["fieldingPerformance"]["catches"] !== undefined) {
 					catches = catches + score["fieldingPerformance"]["catches"];
 				}
+
+				if (score["isMOTM"] === true) {
+					motms ++ ;
+				}
 			});
 			this.playerIdToRunsMap[player["id"]] = runs;
 			this.playerIdToWicketsMap[player["id"]] = wickets;
 			this.playerIdToFoursMap[player["id"]] = fours;
 			this.playerIdToSixesMap[player["id"]] = sixes;
 			this.playerIdToCatchesMap[player["id"]] = catches;
+			this.playerIdToMotmMap[player["id"]] = motms;
 		});
 	}
 
@@ -353,6 +360,7 @@ class Fantasy extends Component {
 		let teamWiseFoursGraphOptions = this._getGraphOptions(this.playerIdToFoursMap);
 		let teamWiseSixesGraphOptions = this._getGraphOptions(this.playerIdToSixesMap);
 		let teamWiseCatchesGraphOptions = this._getGraphOptions(this.playerIdToCatchesMap);
+		let teamWiseMotmGraphOptions = this._getGraphOptions(this.playerIdToMotmMap);
 		return (
 			<>
 				<center>
@@ -401,6 +409,7 @@ class Fantasy extends Component {
 					{this._getGraphView("Fours-Scored", teamWiseFoursGraphOptions)}
 					{this._getGraphView("Sixes-Scored", teamWiseSixesGraphOptions)}
 					{this._getGraphView("Catches-Taken", teamWiseCatchesGraphOptions)}
+					{this._getGraphView("Man of the Matches", teamWiseMotmGraphOptions)}
 			</>
 		);
 	}
