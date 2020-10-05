@@ -151,12 +151,6 @@ class Fantasy extends Component {
 					style={{
 						"margin-top": "20px",
 					}}
-					sorted={[
-						{
-							id: "points",
-							desc: true
-						}
-					]}
 					columns={this.playerTableColumns}
 					minRows={15}
 					data={teamPlayerData} 
