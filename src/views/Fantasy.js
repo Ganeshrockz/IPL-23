@@ -2,9 +2,7 @@ import React, { Component } from 'react';
 
 import CanvasJSReact from '../assets/canvasjs.react';
 
-import * as playerPoints from "../assets/playerPoints.json";
 import * as teams from "../assets/AuctionTeams.json";
-import * as timelinePoints from "../assets/teamPoints.json";
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap/dist/js/bootstrap.min';
 import Row from 'react-bootstrap/Row';
@@ -13,8 +11,6 @@ import Navbar from 'react-bootstrap/Navbar';
 import Container from 'react-bootstrap/Container';
 
 import {
-  Route,
-  NavLink,
   BrowserRouter
 } from "react-router-dom";
 
@@ -25,14 +21,16 @@ var CanvasJSChart = CanvasJSReact.CanvasJSChart;
 
 class Fantasy extends Component {
 	teamIdMap = {
-		1: "CSK",
-		3: "DC",
-		4: "KXIP",
-		5: "KKR",
-		6: "MI",
-		8: "RR",
-		9: "RCB",
-		62: "SRH"	
+		4343: "CSK",
+		4344: "DC",
+		6904: "GT",
+		6903: "LSG",
+		4342: "PBKS",
+		4341: "KKR",
+		4346: "MI",
+		4345: "RR",
+		4340: "RCB",
+		5143: "SRH"	
 	}
 	playerIdToPointsMap = {};
 	playerIdToRunsMap = {};
@@ -64,14 +62,25 @@ class Fantasy extends Component {
 			hideTeamsPointsTable: false,
 			selectedTeamName: "",
 			hidePlayerPointsTable: false,
-			selectedPlayerId: 0
+			selectedPlayerId: 0,
+			playerPoints: null,
 		};
+	}
+
+	componentDidMount() {
+		fetch("https://gist.githubusercontent.com/Ganeshrockz/44c2884e7a0c400ddef40fbeadf95f39/raw/ipl2023-player-points.json")
+		.then((res) => res.json())
+		.then((json) => {
+			this.setState({
+				playerPoints: json
+			});
+		})
 	}
 
 	  
 	_getTeamPoints(players, teams) {
 		this.playerIdToPointsMap = {};
-		
+
 		players.forEach((player) => {
 			let points = player["totalPoints"];
 			if (player["scores"] && player["scores"].length > 0) {
@@ -103,6 +112,10 @@ class Fantasy extends Component {
 			});
 		});
 
+		data.sort((a,b) => {
+			return b["points"] - a["points"];
+		})
+
 		return data;
 	}
 
@@ -117,7 +130,7 @@ class Fantasy extends Component {
 
 		let teamPlayerData = [];
 
-		playerPoints["Players"].forEach((player) => {
+		this.state.playerPoints["Players"].forEach((player) => {
 			if (teamPlayerIds.includes(player["id"])) {
 				let motmPoints = 0;
 				if (player["scores"] && player["scores"].length > 0) {
@@ -135,6 +148,10 @@ class Fantasy extends Component {
 				});
 			}
 		});
+
+		teamPlayerData.sort((a,b) => {
+			return b["points"] - a["points"];
+		})
 
 		return (
 			<>
@@ -186,7 +203,7 @@ class Fantasy extends Component {
 	}
 
 	_populatePlayerWiseStats() {
-		let playerList = playerPoints["Players"];
+		let playerList = this.state.playerPoints["Players"];
 		this.playerIdToRunsMap = {};
 		this.playerIdToWicketsMap = {};
 		this.playerIdToSixesMap = {};
@@ -249,44 +266,6 @@ class Fantasy extends Component {
 		return toolTip;
 	}
 
-	_getTimelineGraphOptions() {
-		let teams = timelinePoints["teams"];
-		let dataArray = [];
-		let dataPoints = [];
-		teams.forEach((team) => {
-			let dataPointsArray = [];
-			let label= 1;
-			team["points"].forEach((point) => {
-				dataPointsArray.push({
-					label: label.toString(),
-					y: point
-				});
-				label += 1;
-			});
-			let dataValue = {
-				type: "spline",
-				name: team["name"],
-				showInLegend: true,
-				dataPoints: dataPointsArray
-			};
-
-			dataArray.push(dataValue);
-		});
-		const options = {
-			animationEnabled: true,
-			exportEnabled: true,
-			axisY: {
-				title: "Points"
-			},
-			legend: {
-				cursor: "pointer"
-			},
-			data: dataArray
-		}
-
-		return options;
-	}
-
 	_getGraphOptions(playerIdToCountMap) {
 		let teamList = teams["teams"];
 		let chartPoints = [];
@@ -347,7 +326,6 @@ class Fantasy extends Component {
 
 	_getTeamsPage(data, columns) {
 		this._populatePlayerWiseStats();
-		let teamWiseTimelineOptions = this._getTimelineGraphOptions();
 		let teamWiseRunsGraphOptions = this._getGraphOptions(this.playerIdToRunsMap);
 		let teamWiseWicketsGraphOptions = this._getGraphOptions(this.playerIdToWicketsMap);
 		let teamWiseFoursGraphOptions = this._getGraphOptions(this.playerIdToFoursMap);
@@ -376,6 +354,12 @@ class Fantasy extends Component {
 					columns={columns}
 					minRows={10}
 					showPagination={false}
+					defaultSorting={[
+						{
+							id: "points",
+							desc: true
+						}
+					]}
 					getTrProps={(state, rowInfo, column, instance) => {
 						return {
 							onClick: (e, handleOriginal) => {
@@ -389,7 +373,6 @@ class Fantasy extends Component {
 							}
 						}
 					}} />
-					{this._getGraphView("Timeline", teamWiseTimelineOptions)}
 					{this._getGraphView("Runs-Scored", teamWiseRunsGraphOptions)}
 					{this._getGraphView("Wickets-Taken", teamWiseWicketsGraphOptions)}
 					{this._getGraphView("Fours-Scored", teamWiseFoursGraphOptions)}
@@ -507,7 +490,7 @@ class Fantasy extends Component {
 
 	_getPlayerDetailView() {
 
-		let players = playerPoints["Players"];
+		let players = this.state.playerPoints["Players"];
 		let currentSelectedPlayer = {};
 		
 		players.forEach((player) => {
@@ -553,8 +536,12 @@ class Fantasy extends Component {
 		);
 	}
 
-  	render() { 
-	  let players = playerPoints["Players"];   
+  	render() {
+	  if (this.state.playerPoints === null) {
+		return <></>
+	  }
+
+	  let players = this.state.playerPoints["Players"];   
 	  let teamList = teams["teams"];
 	  const columns = [	  
 			{
@@ -574,7 +561,7 @@ class Fantasy extends Component {
 		<div>
 			<Navbar bg="dark" variant="dark">
 				<Navbar.Brand href="/">
-					IPL - 2020
+					IPL - 2023
 				</Navbar.Brand>
 			  </Navbar>		  
 			  <BrowserRouter>		  
